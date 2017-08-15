@@ -26,49 +26,66 @@ func checkWordInLists(check map[rune]map[string]bool, first rune, word []rune) b
 	for _, valmap := range check {
 		_, ok := valmap[string(word)]
 		if ok {
-			log.Fatalf("%s is in %s already.\n", word, alias[first])
+			log.Fatalf("%s: Word is in %s already.\n", word, alias[first])
 			return true
 		}
 	}
 	return false
 }
 
+func parseWord(str string) (first rune, word []rune) {
+	runes := []rune(str)
+	first = runes[0]
+	// Смотрим на первый символ ключевого слова
+	switch first {
+	case '-':
+		word = runes[1:]
+	case '!':
+		word = runes[1:]
+	default:
+		// Обычное ключевое слово, обозначим через '#'
+		first = '#'
+		word = runes[:]
+	}
+
+	return first, word
+}
+
 func addWords(reference map[rune]map[string]bool, words []string) {
 
 	for _, r := range words {
-		runes := []rune(r)
-		first := runes[0]
-		var word []rune
-		// Смотрим на первый символ ключевого слова
-		switch first {
-		case '-':
-			word = runes[1:]
-		case '!':
-			word = runes[1:]
-		default:
-			// Обычное ключевое слово, обозначим через '#'
-			first = '#'
-			word = runes[:]
-		}
+
+		first, word := parseWord(r)
 		f := checkWordInLists(reference, first, word)
 		if f {
-			log.Fatalf("Keyword error: ")
+			log.Fatalf("Keyword error:\n")
 		}
-		reference[first][string(runes[1:])] = true
+		reference[first][string(word)] = true
 	}
 }
 
-func delKeyword(word string) {
+func delWords(reference map[rune]map[string]bool, words []string) {
 
+	alias := map[rune]string {
+		'-': "exclude words",
+		'!': "essential words",
+		'#': "keywords",
+	}
+
+	for _, r := range words {
+
+		first, word := parseWord(r)
+		_, ok := reference[first][string(word)]
+		if !ok {
+			log.Fatalf("Keyword error:\n%s: No such word in %s\n", word, alias[first])
+		}
+		delete(reference[first], string(word))
+	}
 }
 
 func getNewsSubjects(keywords []string) []string { //сделать структуру: заголовок, первое предложение из статьи, ссылка
 	ret := []string{}
 	return ret
-}
-
-func parse_arg(cmd string, arg string, num int) {
-
 }
 
 func main() {
@@ -127,6 +144,7 @@ func main() {
 		addWords(reference, os.Args)
 		break
 	case "del":
+		delWords(reference, os.Args)
 		break
 	case "sort":
 		break
