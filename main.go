@@ -26,7 +26,7 @@ func checkWordInLists(check map[rune]map[string]bool, first rune, word []rune) b
 	for _, valmap := range check {
 		_, ok := valmap[string(word)]
 		if ok {
-			log.Fatalf("%s: Word is in %s already.\n", word, alias[first])
+			log.Printf("%s: Word is in %s already.\n", string(word), alias[first])
 			return true
 		}
 	}
@@ -58,7 +58,12 @@ func addWords(reference map[rune]map[string]bool, words []string) {
 		first, word := parseWord(r)
 		f := checkWordInLists(reference, first, word)
 		if f {
-			log.Fatalf("Keyword error:\n")
+			log.Printf("Keyword error:\n")
+			continue
+		}
+		_, ok := reference[first]
+		if !ok {
+			reference[first] = make(map[string]bool)
 		}
 		reference[first][string(word)] = true
 	}
@@ -77,7 +82,7 @@ func delWords(reference map[rune]map[string]bool, words []string) {
 		first, word := parseWord(r)
 		_, ok := reference[first][string(word)]
 		if !ok {
-			log.Fatalf("Keyword error:\n%s: No such word in %s\n", word, alias[first])
+			log.Fatalf("Keyword error:\n%s: No such word in %s\n", string(word), alias[first])
 		}
 		delete(reference[first], string(word))
 	}
@@ -121,32 +126,40 @@ func main() {
 		panic("Wrong command!") // Заменить панику на что-то более спокойное.
 	}
 
-	if len(os.Args) > 10 {
-		panic("Too much arguments")
-	}
+	//if len(os.Args) > 15 {
+	//	panic("Too much arguments")
+	//}
 
-	if(len(os.Args) >= 0) {
+	if(argsLenDict[command] >= 0) {
 		if (len(os.Args) != argsLenDict[command] + 1) {
 			panic("Wrong number of arguments")
 		}
 	}
 
 	reference := map[rune]map[string]bool{}
-
+	reference = make(map[rune]map[string]bool)
 /*	for i, r := range os.Args[2:] {
 		parse_arg(command, r, i)
 	}
 */
 	switch command {
 	case "topic":
-		setTopic(os.Args[2])
+		//setTopic(os.Args[2])
 	case "add":
-		addWords(reference, os.Args)
+		addWords(reference, os.Args[2:])
 		break
 	case "del":
-		delWords(reference, os.Args)
+		delWords(reference, os.Args[2:])
 		break
 	case "sort":
 		break
+	}
+
+	for first, valmap := range reference {
+		fmt.Printf("list %q:\n", first)
+		for key, _ := range valmap {
+			fmt.Printf("%s, ", key)
+		}
+		fmt.Printf("\n\n")
 	}
 }
