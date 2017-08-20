@@ -5,12 +5,22 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"../workers"
 	"github.com/gorilla/mux"
+	"github.com/moovweb/gokogiri"
 )
+
+// type IPool interface {
+// 	Size() int
+// 	Run()
+// 	AddTaskSyncTimed(f workers.Func, timeout time.Duration) (interface{}, error)
+// }
+
+var pool *workers.Pool = workers.NewPool(5)
 
 func contains(s []string, e string) (bool, int) {
 	for i, a := range s {
@@ -25,7 +35,7 @@ func checkWordInLists(check map[rune][]string, first rune, word string) bool {
 
 	alias := map[rune]string{
 		'-': "exclude words",
-		'!': "essential words",
+		'+': "essential words",
 		'#': "keywords",
 	}
 
@@ -79,7 +89,7 @@ func delWords(reference map[rune][]string, words []string) {
 
 	alias := map[rune]string{
 		'-': "exclude words",
-		'!': "essential words",
+		'+': "essential words",
 		'#': "keywords",
 	}
 
@@ -101,9 +111,10 @@ func delWords(reference map[rune][]string, words []string) {
 
 func runParser(wr http.ResponseWriter, req *http.Request) { //сделать структуру: заголовок, первое предложение из статьи, ссылка
 
-	log.Printf("Message /run/ received:\n%s\n", req.Body)
+	log.Printf("Message /run/ received\n")
 
 	handler := func() interface{} {
+
 		res, err := http.Get("http://otvet.mail.ru/search/" + strings.Join(reference['#'], " "))
 		if err != nil {
 			log.Fatal(err)
@@ -115,20 +126,38 @@ func runParser(wr http.ResponseWriter, req *http.Request) { //сделать с�
 			log.Fatal(err)
 		}
 
-		log.Printf("Message received:\n%s\n", body)
-		// doc, _ := gokogiri.ParseHtml(body)
+		// log.Printf("Message received:\n%s\n", body)
+		doc, err := gokogiri.ParseHtml(body)
+		fl, err := os.Create("file.txt")
+		// fl, err := os.Open("file.txt")
+		defer fl.Close()
+		fmt.Fprintf(fl, "%s\n", doc.Content())
+		if err != nil {
+			log.Fatal(err)
+		}
+		xp := "//*[@id=\"ColumnCenter\"]/div[2]/div/div[3]/div"
+		nodes, err := doc.Search(xp)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Printf("%s:\nnum of matching nodes = %d\n", xp, len(nodes))
+
+		// node[0].CountChildren()
+
 		// panelPath := "[@id=\"ColumnCenter\"]/div[2]/div/div[3]/div"
 
 		return nil
 
 	}
+
 	pool.AddTaskSyncTimed(handler, time.Second)
 	wr.WriteHeader(http.StatusOK)
 
 }
 
 func editTopic(wr http.ResponseWriter, req *http.Request) {
-	log.Printf("Message /topic/ received:\n%s\n", req.Body)
+	log.Printf("Message /topic/ received:\n")
 
 	handler := func() interface{} {
 		body, err := ioutil.ReadAll(req.Body)
@@ -150,7 +179,7 @@ func editTopic(wr http.ResponseWriter, req *http.Request) {
 
 func editWordsDelete(wr http.ResponseWriter, req *http.Request) {
 
-	fmt.Printf("Message /words.delete/ received:\n%s\n", req.Body)
+	fmt.Printf("Message /words.delete/ received\n")
 
 	handler := func() interface{} {
 		body, err := ioutil.ReadAll(req.Body)
@@ -175,7 +204,7 @@ func editWordsAdd(wr http.ResponseWriter, req *http.Request) {
 
 	// body, _ := ioutil.ReadAll(req.Body)
 	// req.Body.Close()
-	log.Printf("Message /words.add/ received:\n%s\n", req.Body)
+	log.Printf("Message /words.add/ received\n")
 
 	handler := func() interface{} {
 
@@ -198,6 +227,7 @@ func editWordsAdd(wr http.ResponseWriter, req *http.Request) {
 				}
 		*/
 		body, err := ioutil.ReadAll(req.Body)
+		// head := req.Header
 		req.Body.Close()
 		fmt.Printf("Message received:\n%s\n", body)
 
@@ -240,8 +270,6 @@ var spec struct {
 	SortBy int `json:"sort_by"`
 }
 
-var pool workers.Pool
-
 // Start a server with @parameter concurency pool size
 func Start(concurency int, addr string) {
 
@@ -258,7 +286,8 @@ func Start(concurency int, addr string) {
 	router.HandleFunc("/topic", editTopic).Methods("POST")
 	// router.HandleFunc("/spec", editSpec).Methods("POST")
 	router.HandleFunc("/run", runParser).Methods("GET")
-	pool := workers.NewPool(concurency)
+	// pool := workers.NewPool(concurency)
 	pool.Run()
+
 	log.Fatal(http.ListenAndServe(addr, router))
 }
