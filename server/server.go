@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"../workers"
+	"github.com/gorilla/mux"
+	"github.com/moovweb/gokogiri"
 )
 
 func contains(s []string, e string) (bool, int) {
@@ -103,31 +105,40 @@ func getNewsSubjects(keywords []string) []string { //сделать структ
 	return ret
 }
 
-func loopFunc(wr http.ResponseWriter, req *http.Request) {
+func editTopic(wr http.ResponseWriter, req *http.Request) {
+	fmt.Printf("Message /topic/ received:\n%s\n", req.Body)
+
+}
+
+func editWordsDelete(wr http.ResponseWriter, req *http.Request) {
+
+}
+func editWordsAdd(wr http.ResponseWriter, req *http.Request) {
 
 	// body, _ := ioutil.ReadAll(req.Body)
 	// req.Body.Close()
-	fmt.Printf("Message received:\n%s\n", req.Body)
+	fmt.Printf("Message /words.add/ received:\n%s\n", req.Body)
 
 	handler := func() interface{} {
 
-		commandsList := []string{
-			"start",
-			"stop",
-			"topic",
-			"add",
-			"del",
-			"sort",
-		}
+		/*		commandsList := []string{
+					"start",
+					"stop",
+					"topic",
+					"add",
+					"del",
+					"sort",
+				}
 
-		argsLenDict := map[string]int{
-			"start": 0,
-			"stop":  0,
-			"topic": 1,
-			"add":   -1,
-			"del":   -1,
-			"sort":  1,
-		}
+				argsLenDict := map[string]int{
+					"start": 0,
+					"stop":  0,
+					"topic": 1,
+					"add":   -1,
+					"del":   -1,
+					"sort":  1,
+				}
+		*/
 		body, err := ioutil.ReadAll(req.Body)
 		req.Body.Close()
 		fmt.Printf("Message received:\n%s\n", body)
@@ -170,6 +181,10 @@ func loopFunc(wr http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				log.Fatal(err)
 			}
+
+			doc, _ := gokogiri.ParseHtml(body)
+			panelPath := "[@id=\"ColumnCenter\"]/div[2]/div/div[3]/div"
+			doc.XPathCtx(panelPath)
 			fmt.Printf("%s", body)
 
 		case "stop":
@@ -212,8 +227,11 @@ func Start(concurency int, addr string) {
 	// 	fmt.Printf("help")
 	// 	return
 	// }
+	router := mux.NewRouter()
+	router.HandleFunc("/words", editWordsAdd).Methods("POST")
+	router.HandleFunc("/words", editWordsDelete).Methods("DELETE")
+	router.HandleFunc("add", editWords).Methods("POST")
 	pool := workers.NewPool(concurency)
 	pool.Run()
-	http.HandleFunc("/", loopFunc)
-	http.ListenAndServe(addr, nil)
+	log.Fatal(http.ListenAndServe(addr, router))
 }
