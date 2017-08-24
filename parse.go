@@ -1,10 +1,12 @@
-package main
+package parser
+
 import (
 	"io"
 	"net/http"
 	"os"
 	"github.com/PuerkitoBio/goquery"
 )
+
 func CheckError(err error){
 	if err != nil {
 			   panic(err)
